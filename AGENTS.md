@@ -1,6 +1,7 @@
 # AGENTS.md（PlatformIO 開発用）
 
 このリポジトリは PlatformIO を前提に開発する。エージェントは **`platformio.ini` を唯一のビルド定義**として扱い、環境（env）を跨ぐ変更は慎重に行う。
+推論は英語で行い、報告は日本語で行うこと。
 
 ---
 
@@ -13,6 +14,7 @@
 - `test/`：PlatformIO Unit Test
 - `scripts/`：ビルド補助（extra_scripts 等）
 - `data/`：SPIFFS/LittleFS 等のデータ（使用する場合）
+- `docs/`: ドキュメント
 
 ---
 
