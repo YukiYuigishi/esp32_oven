@@ -6,7 +6,7 @@
 constexpr int PIN_MAX31855_SCK = 18;
 constexpr int PIN_MAX31855_MISO = 19;
 constexpr int PIN_MAX31855_CS = 5;
-constexpr int PIN_SSR = 4;
+constexpr int PIN_SSR = 13;
 constexpr int PIN_RUN_SWITCH = 2;
 
 // Control timing (ms)
