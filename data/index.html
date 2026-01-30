@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ESP32 Oven</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <div class="eyebrow">ESP32 Oven</div>
+        <h1>Profile Control</h1>
+        <p>Mobile-first UI for status, run/stop, and profile editing.</p>
+      </div>
+      <div class="hero-actions">
+        <button class="btn ghost" id="themeToggle">Light</button>
+        <div class="status-chip" id="statusState">STATE</div>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <h2>Status</h2>
+        <div class="status-grid">
+          <div>
+            <div class="label">Measured</div>
+            <div class="value" id="tMeas">--</div>
+          </div>
+          <div>
+            <div class="label">Setpoint</div>
+            <div class="value" id="tSet">--</div>
+          </div>
+          <div>
+            <div class="label">Delta</div>
+            <div class="value" id="delta">--</div>
+          </div>
+          <div>
+            <div class="label">Duty</div>
+            <div class="value" id="duty">--</div>
+          </div>
+          <div>
+            <div class="label">Switch</div>
+            <div class="value" id="runSwitch">--</div>
+          </div>
+          <div>
+            <div class="label">Active Profile</div>
+            <div class="value" id="activeProfile">--</div>
+          </div>
+          <div>
+            <div class="label">Fault</div>
+            <div class="value" id="fault">--</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Run Control</h2>
+        <div class="row">
+          <select id="runProfile"></select>
+          <button class="btn primary" id="runBtn">Run</button>
+          <button class="btn ghost" id="stopBtn">Stop</button>
+        </div>
+        <div class="hint">Run uses the selected profile. Leave empty for manual setpoint.</div>
+      </section>
+
+      <section class="card wide">
+        <h2>Profile Editor</h2>
+        <div class="row">
+          <input id="profileName" type="text" placeholder="profile name" />
+          <select id="endBehavior">
+            <option value="hold_last">hold_last</option>
+            <option value="stop">stop</option>
+          </select>
+          <button class="btn" id="addPoint">Add Point</button>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="profileChart" width="800" height="280"></canvas>
+        </div>
+
+        <div class="table-wrap">
+          <table id="pointsTable">
+            <thead>
+              <tr>
+                <th>t_sec</th>
+                <th>temp_c</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="row">
+          <button class="btn primary" id="saveProfile">Save</button>
+          <button class="btn ghost" id="clearEditor">Clear</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Profiles</h2>
+        <div id="profileList" class="list"></div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
