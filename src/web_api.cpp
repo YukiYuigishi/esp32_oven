@@ -2,6 +2,9 @@
 #include "app_config.h"
 #include "control.h"
 #include "profile.h"
+#include "storage.h"
+#include <FS.h>
+#include <LittleFS.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
@@ -93,6 +96,15 @@ void handleStop() {
 
 void handleNotFound() {
   String uri = g_server.uri();
+  if (LittleFS.exists(uri)) {
+    String content_type = "text/plain";
+    if (uri.endsWith(".html")) content_type = "text/html";
+    else if (uri.endsWith(".css")) content_type = "text/css";
+    else if (uri.endsWith(".js")) content_type = "application/javascript";
+    else if (uri.endsWith(".json")) content_type = "application/json";
+    g_server.send(LittleFS, uri, content_type);
+    return;
+  }
   if (uri.startsWith("/api/profiles/")) {
     String name = uri.substring(strlen("/api/profiles/"));
     if (name.isEmpty()) {
@@ -124,6 +136,7 @@ void handleNotFound() {
         g_server.send(404, "application/json", "{\"ok\":false,\"error\":\"PROFILE_NOT_FOUND\"}");
         return;
       }
+      storageSaveProfiles();
       g_server.send(200, "application/json", "{\"ok\":true}");
       return;
     }
@@ -142,8 +155,8 @@ void handleProfilesUpsert() {
     g_server.send(400, "application/json", "{\"ok\":false,\"error\":\"BODY_REQUIRED\"}");
     return;
   }
-    JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, g_server.arg("plain"));
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, g_server.arg("plain"));
   if (err) {
     g_server.send(400, "application/json", "{\"ok\":false,\"error\":\"BAD_JSON\"}");
     return;
@@ -178,6 +191,7 @@ void handleProfilesUpsert() {
     g_server.send(400, "application/json", payload);
     return;
   }
+  storageSaveProfiles();
   g_server.send(200, "application/json", "{\"ok\":true}");
 }
 
@@ -229,6 +243,10 @@ bool setupWifi() {
 }
 
 void setupServer() {
+  g_server.serveStatic("/", LittleFS, "/index.html");
+  g_server.serveStatic("/index.html", LittleFS, "/index.html");
+  g_server.serveStatic("/styles.css", LittleFS, "/styles.css");
+  g_server.serveStatic("/app.js", LittleFS, "/app.js");
   g_server.on("/api/status", HTTP_GET, handleStatus);
   g_server.on("/api/profiles", HTTP_GET, handleProfilesList);
   g_server.on("/api/profiles", HTTP_POST, handleProfilesUpsert);
