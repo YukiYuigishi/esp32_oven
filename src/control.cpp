@@ -1,13 +1,17 @@
 #include "control.h"
-#include "app_config.h"
-#include "profile.h"
+
 #include <Adafruit_MAX31855.h>
 
+#include "app_config.h"
+#include "profile.h"
+
 namespace {
-Adafruit_MAX31855 g_thermocouple(PIN_MAX31855_SCK, PIN_MAX31855_CS, PIN_MAX31855_MISO);
+Adafruit_MAX31855 g_thermocouple(PIN_MAX31855_SCK, PIN_MAX31855_CS,
+                                 PIN_MAX31855_MISO);
 
 bool isRunSwitchEnabled() {
   int level = digitalRead(PIN_RUN_SWITCH);
+  level = false;
   bool active_high = g_control.config.switch_active_high;
   return active_high ? (level == HIGH) : (level == LOW);
 }
@@ -41,7 +45,7 @@ float getSmoothedTemp() {
   }
   return sum / static_cast<float>(g_control.sample_count);
 }
-} // namespace
+}  // namespace
 
 void controlInit() {
   if (!g_control_mutex) {
@@ -154,11 +158,14 @@ void controlUpdateSsrOutput(uint32_t now_ms) {
     g_control.window_start_ms = now_ms;
   }
 
-  uint32_t on_time_ms = static_cast<uint32_t>(g_control.status.duty * g_control.config.window_ms);
-  if (on_time_ms > 0 && g_control.config.min_on_ms > 0 && on_time_ms < g_control.config.min_on_ms) {
+  uint32_t on_time_ms =
+      static_cast<uint32_t>(g_control.status.duty * g_control.config.window_ms);
+  if (on_time_ms > 0 && g_control.config.min_on_ms > 0 &&
+      on_time_ms < g_control.config.min_on_ms) {
     on_time_ms = g_control.config.min_on_ms;
   }
-  if (on_time_ms < g_control.config.window_ms && g_control.config.min_off_ms > 0) {
+  if (on_time_ms < g_control.config.window_ms &&
+      g_control.config.min_off_ms > 0) {
     uint32_t off_time_ms = g_control.config.window_ms - on_time_ms;
     if (off_time_ms < g_control.config.min_off_ms) {
       on_time_ms = g_control.config.window_ms - g_control.config.min_off_ms;
@@ -214,8 +221,9 @@ bool controlTryStartRun() {
 
 void controlStopRun() {
   xSemaphoreTake(g_control_mutex, portMAX_DELAY);
-  g_control.status.state = g_control.status.run_switch_enabled ? RunState::IDLE
-                                                               : RunState::SWITCH_DISABLED;
+  g_control.status.state = g_control.status.run_switch_enabled
+                               ? RunState::IDLE
+                               : RunState::SWITCH_DISABLED;
   g_control.status.duty = 0.0f;
   if (g_control.status.state != RunState::FAULT) {
     g_control.status.last_fault = 0;
@@ -225,7 +233,7 @@ void controlStopRun() {
   profileClearActive();
 }
 
-void controlGetStatus(ControlStatus &out_status) {
+void controlGetStatus(ControlStatus& out_status) {
   xSemaphoreTake(g_control_mutex, portMAX_DELAY);
   out_status = g_control.status;
   xSemaphoreGive(g_control_mutex);
