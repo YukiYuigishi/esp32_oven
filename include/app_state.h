@@ -32,11 +32,13 @@ struct ControlStatus {
   uint8_t last_fault = 0;
   RunState state = RunState::IDLE;
   bool run_switch_enabled = false;
+  uint32_t elapsed_sec = 0;
 };
 
 struct ControlData {
   ControlConfig config;
   ControlStatus status;
+  uint32_t run_start_ms = 0;
   uint32_t window_start_ms = 0;
   float temp_samples[MAX_SMOOTH_WINDOW] = {};
   uint8_t sample_index = 0;

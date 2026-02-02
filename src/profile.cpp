@@ -134,6 +134,24 @@ bool profileGet(const String &name, Profile &out_profile) {
   return true;
 }
 
+bool profileGetByIndex(uint8_t index, Profile &out_profile) {
+  xSemaphoreTake(g_profile_mutex, portMAX_DELAY);
+  if (index >= g_profile_count) {
+    xSemaphoreGive(g_profile_mutex);
+    return false;
+  }
+  out_profile = g_profiles[index];
+  xSemaphoreGive(g_profile_mutex);
+  return true;
+}
+
+void profileClearAll() {
+  xSemaphoreTake(g_profile_mutex, portMAX_DELAY);
+  g_profile_count = 0;
+  g_active_name = "";
+  xSemaphoreGive(g_profile_mutex);
+}
+
 void profileList(String &json_out) {
   JsonDocument doc;
   JsonArray items = doc["profiles"].to<JsonArray>();

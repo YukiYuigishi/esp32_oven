@@ -86,11 +86,13 @@ void controlUpdateState() {
 
   if (!g_control.status.run_switch_enabled) {
     g_control.status.state = RunState::SWITCH_DISABLED;
+    g_control.status.elapsed_sec = 0;
     xSemaphoreGive(g_control_mutex);
     return;
   }
 
   if (g_control.status.state == RunState::FAULT) {
+    g_control.status.elapsed_sec = 0;
     xSemaphoreGive(g_control_mutex);
     return;
   }
@@ -98,6 +100,7 @@ void controlUpdateState() {
   if (g_control.status.state == RunState::SWITCH_DISABLED ||
       g_control.status.state == RunState::IDLE) {
     g_control.status.state = RunState::IDLE;
+    g_control.status.elapsed_sec = 0;
   }
 
   xSemaphoreGive(g_control_mutex);
@@ -107,14 +110,17 @@ void controlComputeControl() {
   xSemaphoreTake(g_control_mutex, portMAX_DELAY);
   if (g_control.status.state != RunState::RUNNING) {
     g_control.status.duty = 0.0f;
+    g_control.status.elapsed_sec = 0;
     xSemaphoreGive(g_control_mutex);
     return;
   }
 
+  g_control.status.elapsed_sec = (millis() - g_control.run_start_ms) / 1000;
   float t_meas = getSmoothedTemp();
   if (isnan(t_meas)) {
     g_control.status.state = RunState::FAULT;
     g_control.status.duty = 0.0f;
+    g_control.status.elapsed_sec = 0;
     xSemaphoreGive(g_control_mutex);
     return;
   }
@@ -122,6 +128,7 @@ void controlComputeControl() {
   if (t_meas >= g_control.config.tmax_c) {
     g_control.status.state = RunState::FAULT;
     g_control.status.duty = 0.0f;
+    g_control.status.elapsed_sec = 0;
     xSemaphoreGive(g_control_mutex);
     return;
   }
@@ -132,6 +139,7 @@ void controlComputeControl() {
     if (setpoint.completed && setpoint.end_behavior == EndBehavior::STOP) {
       g_control.status.state = RunState::IDLE;
       g_control.status.duty = 0.0f;
+      g_control.status.elapsed_sec = 0;
       xSemaphoreGive(g_control_mutex);
       return;
     }
@@ -196,6 +204,8 @@ void controlLogStatus(uint32_t now_ms) {
   Serial.print(g_control.status.duty, 3);
   Serial.print(" delta=");
   Serial.print(g_control.status.t_set_c - g_control.status.t_meas_c, 2);
+  Serial.print(" elapsed=");
+  Serial.print(g_control.status.elapsed_sec);
   Serial.print(" switch=");
   Serial.print(g_control.status.run_switch_enabled ? "EN" : "DIS");
   Serial.print(" fault=");
@@ -207,14 +217,18 @@ bool controlTryStartRun() {
   xSemaphoreTake(g_control_mutex, portMAX_DELAY);
   if (!g_control.status.run_switch_enabled) {
     g_control.status.state = RunState::SWITCH_DISABLED;
+    g_control.status.elapsed_sec = 0;
     xSemaphoreGive(g_control_mutex);
     return false;
   }
   if (g_control.status.state == RunState::FAULT) {
+    g_control.status.elapsed_sec = 0;
     xSemaphoreGive(g_control_mutex);
     return false;
   }
   g_control.status.state = RunState::RUNNING;
+  g_control.run_start_ms = millis();
+  g_control.status.elapsed_sec = 0;
   xSemaphoreGive(g_control_mutex);
   return true;
 }
@@ -225,6 +239,7 @@ void controlStopRun() {
                                ? RunState::IDLE
                                : RunState::SWITCH_DISABLED;
   g_control.status.duty = 0.0f;
+  g_control.status.elapsed_sec = 0;
   if (g_control.status.state != RunState::FAULT) {
     g_control.status.last_fault = 0;
   }
@@ -236,5 +251,20 @@ void controlStopRun() {
 void controlGetStatus(ControlStatus& out_status) {
   xSemaphoreTake(g_control_mutex, portMAX_DELAY);
   out_status = g_control.status;
+  xSemaphoreGive(g_control_mutex);
+}
+
+void controlGetConfig(ControlConfig& out_config) {
+  xSemaphoreTake(g_control_mutex, portMAX_DELAY);
+  out_config = g_control.config;
+  xSemaphoreGive(g_control_mutex);
+}
+
+void controlSetConfig(const ControlConfig& config) {
+  xSemaphoreTake(g_control_mutex, portMAX_DELAY);
+  g_control.config = config;
+  if (g_control.config.smooth_window > MAX_SMOOTH_WINDOW) {
+    g_control.config.smooth_window = MAX_SMOOTH_WINDOW;
+  }
   xSemaphoreGive(g_control_mutex);
 }

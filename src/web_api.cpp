@@ -58,6 +58,9 @@ void handleStatus() {
   json += "\"run_switch\":";
   json += status.run_switch_enabled ? "true" : "false";
   json += ",";
+  json += "\"elapsed_sec\":";
+  json += String(status.elapsed_sec);
+  json += ",";
   json += "\"active_profile\":";
   json += "\"";
   json += profileGetActiveName();
@@ -102,7 +105,12 @@ void handleNotFound() {
     else if (uri.endsWith(".css")) content_type = "text/css";
     else if (uri.endsWith(".js")) content_type = "application/javascript";
     else if (uri.endsWith(".json")) content_type = "application/json";
-    g_server.send(LittleFS, uri, content_type);
+    File file = LittleFS.open(uri, "r");
+    if (file) {
+      g_server.streamFile(file, content_type);
+      file.close();
+      return;
+    }
     return;
   }
   if (uri.startsWith("/api/profiles/")) {

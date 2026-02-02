@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "app_config.h"
 #include "control.h"
+#include "storage.h"
 #include "web_api.h"
 
 namespace {
@@ -39,6 +40,9 @@ void setup() {
   Serial.begin(115200);
 
   controlInit();
+  storageInit();
+  storageLoadConfig();
+  storageLoadProfiles();
   webSetup();
 
   xTaskCreatePinnedToCore(sensorTask, "sensor", 4096, nullptr, 2, nullptr, 1);

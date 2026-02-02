@@ -32,6 +32,8 @@ void profileSetTempLimits(float min_c, float max_c);
 bool profileAddOrUpdate(const Profile &profile, String &error);
 bool profileDelete(const String &name);
 bool profileGet(const String &name, Profile &out_profile);
+bool profileGetByIndex(uint8_t index, Profile &out_profile);
+void profileClearAll();
 void profileList(String &json_out);
 
 bool profileStartRun(const String &name);

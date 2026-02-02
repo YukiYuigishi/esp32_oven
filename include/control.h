@@ -13,3 +13,5 @@ void controlLogStatus(uint32_t now_ms);
 bool controlTryStartRun();
 void controlStopRun();
 void controlGetStatus(ControlStatus &out_status);
+void controlGetConfig(ControlConfig &out_config);
+void controlSetConfig(const ControlConfig &config);

@@ -7,6 +7,7 @@ const deltaEl = $("delta");
 const dutyEl = $("duty");
 const runSwitchEl = $("runSwitch");
 const activeProfileEl = $("activeProfile");
+const elapsedEl = $("elapsed");
 const faultEl = $("fault");
 const profileSelectEl = $("runProfile");
 const profileListEl = $("profileList");
@@ -66,6 +67,7 @@ const updateStatus = async () => {
   dutyEl.textContent = format(s.duty, 3);
   runSwitchEl.textContent = s.run_switch ? "EN" : "DIS";
   activeProfileEl.textContent = s.active_profile || "-";
+  elapsedEl.textContent = `${s.elapsed_sec ?? 0} sec`;
   faultEl.textContent = s.fault;
 };
 
