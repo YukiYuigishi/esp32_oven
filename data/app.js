@@ -16,9 +16,14 @@ const endBehaviorEl = $("endBehavior");
 const pointsTableBody = $("pointsTable").querySelector("tbody");
 const chartEl = $("profileChart");
 const chartCtx = chartEl.getContext("2d");
+const downloadBtn = $("downloadProfile");
+const uploadInput = $("uploadProfile");
 
 const toastEl = $("toast");
 const themeToggleEl = $("themeToggle");
+
+let lastStatus = null;
+let measuredSeries = [];
 
 const setCookie = (name, value, days = 365) => {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -60,6 +65,7 @@ const updateStatus = async () => {
   const res = await api("/api/status");
   if (!res.ok || !res.data.ok) return;
   const s = res.data.data;
+  lastStatus = s;
   stateEl.textContent = s.state;
   tMeasEl.textContent = `${format(s.t_meas)} C`;
   tSetEl.textContent = `${format(s.t_set)} C`;
@@ -69,6 +75,8 @@ const updateStatus = async () => {
   activeProfileEl.textContent = s.active_profile || "-";
   elapsedEl.textContent = `${s.elapsed_sec ?? 0} sec`;
   faultEl.textContent = s.fault;
+  updateMeasuredSeries();
+  drawChart();
 };
 
 const addPointRow = (t = "", temp = "") => {
@@ -89,6 +97,7 @@ const clearEditor = () => {
   profileNameEl.value = "";
   endBehaviorEl.value = "hold_last";
   pointsTableBody.innerHTML = "";
+  measuredSeries = [];
   drawChart();
 };
 
@@ -101,6 +110,25 @@ const collectPoints = () => {
     points.push({ t_sec: Number(t), temp_c: Number(temp) });
   });
   return points;
+};
+
+const updateMeasuredSeries = () => {
+  if (!lastStatus) return;
+  const name = (profileNameEl.value || "").trim();
+  if (!name || name !== lastStatus.active_profile) {
+    measuredSeries = [];
+    return;
+  }
+  const elapsed = Number(lastStatus.elapsed_sec ?? 0);
+  const temp = Number(lastStatus.t_meas);
+  if (!Number.isFinite(elapsed) || !Number.isFinite(temp)) return;
+  if (elapsed === 0) {
+    measuredSeries = [];
+  }
+  const last = measuredSeries[measuredSeries.length - 1];
+  if (!last || last.t_sec !== elapsed) {
+    measuredSeries.push({ t_sec: elapsed, temp_c: temp });
+  }
 };
 
 const drawChart = () => {
@@ -143,6 +171,26 @@ const drawChart = () => {
   });
   chartCtx.stroke();
 
+  if (lastStatus && lastStatus.active_profile &&
+      lastStatus.active_profile === (profileNameEl.value || "").trim()) {
+    const elapsed = Number(lastStatus.elapsed_sec ?? 0);
+    if (Number.isFinite(elapsed)) {
+      for (let i = 1; i < points.length; i += 1) {
+        const a = points[i - 1];
+        const b = points[i];
+        if (elapsed >= a.t_sec && elapsed <= b.t_sec) {
+          chartCtx.strokeStyle = "#22d3ee";
+          chartCtx.lineWidth = 4;
+          chartCtx.beginPath();
+          chartCtx.moveTo(xFor(a.t_sec), yFor(a.temp_c));
+          chartCtx.lineTo(xFor(b.t_sec), yFor(b.temp_c));
+          chartCtx.stroke();
+          break;
+        }
+      }
+    }
+  }
+
   chartCtx.fillStyle = "#fb923c";
   points.forEach((p) => {
     const x = xFor(p.t_sec);
@@ -151,6 +199,17 @@ const drawChart = () => {
     chartCtx.arc(x, y, 4, 0, Math.PI * 2);
     chartCtx.fill();
   });
+
+  if (measuredSeries.length > 0) {
+    chartCtx.fillStyle = "#38bdf8";
+    measuredSeries.forEach((p) => {
+      const x = xFor(p.t_sec);
+      const y = yFor(p.temp_c);
+      chartCtx.beginPath();
+      chartCtx.arc(x, y, 3, 0, Math.PI * 2);
+      chartCtx.fill();
+    });
+  }
 };
 
 const refreshProfiles = async () => {
@@ -192,6 +251,7 @@ const loadProfile = async (name) => {
   profileNameEl.value = res.data.name;
   endBehaviorEl.value = res.data.end_behavior || "hold_last";
   (res.data.points || []).forEach((p) => addPointRow(p.t_sec, p.temp_c));
+  measuredSeries = [];
   drawChart();
 };
 
@@ -235,6 +295,55 @@ const saveProfile = async () => {
   drawChart();
 };
 
+const downloadProfile = async () => {
+  const name = profileNameEl.value.trim();
+  if (!name) {
+    showToast("Name required");
+    return;
+  }
+  const res = await api(`/api/profiles/${encodeURIComponent(name)}`);
+  if (!res.ok) {
+    showToast("Download failed");
+    return;
+  }
+  const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${name}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+
+const uploadProfile = async (file) => {
+  const text = await file.text();
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    showToast("Invalid JSON");
+    return;
+  }
+  if (!payload || !payload.name || !payload.points) {
+    showToast("Missing name/points");
+    return;
+  }
+  const res = await api("/api/profiles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok || res.data.ok === false) {
+    showToast(`Upload failed: ${res.data.error || res.status}`);
+    return;
+  }
+  showToast("Uploaded");
+  refreshProfiles();
+  loadProfile(payload.name);
+};
+
 const runProfile = async () => {
   const profile_id = profileSelectEl.value;
   const payload = profile_id ? { profile_id } : {};
@@ -264,6 +373,12 @@ $("saveProfile").addEventListener("click", saveProfile);
 $("clearEditor").addEventListener("click", clearEditor);
 $("runBtn").addEventListener("click", runProfile);
 $("stopBtn").addEventListener("click", stopRun);
+downloadBtn.addEventListener("click", downloadProfile);
+uploadInput.addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) uploadProfile(file);
+  uploadInput.value = "";
+});
 themeToggleEl.addEventListener("click", () => {
   const next = document.body.classList.contains("light") ? "dark" : "light";
   applyTheme(next);
